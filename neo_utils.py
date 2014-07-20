@@ -2,29 +2,29 @@ from py2neo import neo4j, node, rel
 import sys
 
 
-"""
-Create Batch Nodes in the database
-  db -> a py2neo DB Object
-  label -> the label to apply to these nodes
-          e.g. "Person"
-  data -> an array of dicts to add to these objects
-          e.g. [
-                 {attr: 1},
-                 {attr: 2},
-                 ...
-               ]
-  key -> the key in each dict item to index on.  Key will be renamed to 'id'
-          e.g. 'person_id'
-"""
-
 def getLargestId(db, label):
-  print 'WARNING: THIS WILL NOT WORK WITH STRING FIELDS'
+  print 'Note: This only works with integer fields, NOT strings'
   q = neo4j.CypherQuery(db, "match (n:%s) return n.id order by n.id desc limit 1" % label)
   r = q.execute()
   return r.data[0].values[0]
 
 
 def mergeNodes(db, label, data, id_key='id', uniqueIndex=True):
+  """
+  Create Batch Nodes in the database
+    db: A py2neo DB Object
+    label:  The label to apply to these nodes
+            e.g. "Person"
+    data:   An array of dicts to add to these objects
+            e.g. [
+                   {attr: 1},
+                   {attr: 2},
+                   ...
+                 ]
+    key:    The key in each dict item to index on.  Key will be renamed to 'id'
+            e.g. 'person_id'
+  """
+
   " MERGE (n:Test { id:2 }) "
   "   ON CREATE SET n.name = 'new', n.new = 'yes' "
   "   ON MATCH SET n.name = 'rob', n.something = 'more' "
@@ -57,7 +57,7 @@ def mergeNodes(db, label, data, id_key='id', uniqueIndex=True):
       query_str += ','.join(params)
 
     query_str += " RETURN n"
-  
+
     merge_query = neo4j.CypherQuery(db, query_str)
     return merge_query
 
@@ -77,12 +77,12 @@ def mergeNodes(db, label, data, id_key='id', uniqueIndex=True):
     batch.append_cypher(query, params=attributes)
 
   print '..submitting query'
-  nodes = batch.submit() 
+  nodes = batch.submit()
   print '..done'
 
 def createNodes(db, label, data, id_key='id', uniqueIndex=True):
     print 'creating nodes: ', label
-    
+
     # Create Index
     if uniqueIndex:
       #N.B. Creating a constraint also create an index
@@ -92,7 +92,7 @@ def createNodes(db, label, data, id_key='id', uniqueIndex=True):
       query = neo4j.CypherQuery(db, "CREATE INDEX ON :%s(id)" % label)
       query.execute()
       # Can remove with Drop index on :%s(id)
-    
+
     # Write the batch
     batch = neo4j.WriteBatch(db)
     for d in data:
@@ -100,15 +100,15 @@ def createNodes(db, label, data, id_key='id', uniqueIndex=True):
 
         #Rename the ID for hte index
         attributes['id'] = int(attributes.pop(id_key))
-    
+
         n = batch.create(node(attributes))
         batch.add_labels(n, label)# , 'label2', 'label3'...)
-    nodes = batch.submit() 
+    nodes = batch.submit()
 
 
 
 def __getIds(data,key):
-  """Given a dictionary key, return an array string ids 
+  """Given a dictionary key, return an array string ids
 
   @data -- dict containing some ids
   @key  -- key in the dict that is convertible to string or a list
@@ -125,7 +125,7 @@ def __getIds(data,key):
   if not isinstance(values, list):
     return [ str(values) ]
   return [str(v) for v in values]
-  
+
 
 def createRelationships(db, data, source_key, target_key, source_label, target_label, rel_label ):
     print 'creating relationshinps from %s to %s' % (source_label, target_label)
@@ -135,7 +135,7 @@ def createRelationships(db, data, source_key, target_key, source_label, target_l
             " CREATE (s)-[:%s]->(t)" % (source_label, target_label, "%s", "%s", rel_label)
     print 'executing query: ', query
     sys.stdout.flush()
-    
+
     batch = neo4j.WriteBatch(db)
     for d in data:
         targets = __getIds(d, target_key)
